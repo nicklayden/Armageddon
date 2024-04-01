@@ -22,39 +22,74 @@ A_prime = np.genfromtxt("Results/A_metric_prime.txt")
 R_prime = np.genfromtxt("Results/R_prime.txt")
 rho = np.genfromtxt("Results/rho.txt")
 mass_dot = np.genfromtxt("Results/mass_dot.txt")
+centraldensity = np.genfromtxt("Results/CentralDensity.txt")
 B_metric= np.genfromtxt
 
 kappa = np.pi*4
 
-r_s = 3.0
+r_s = np.sqrt(1.6)
 N_space = 200
 
-dt = 0.0025
-Nt = 86
+dt = 0.002
+Nt = 90
 t_end = dt*Nt
 
-t_grid = np.arange(0,Nt,dt)
+# t_grid = np.arange(0,Nt,dt)
 t_grid = np.linspace(0,t_end,Nt)
 r_grid = np.linspace(0,r_s,N_space)
 
 x_data = r_grid
-data_plotted = R_metric
+data_plotted = rho
 
 
-# plt.plot(R_metric[0],data_plotted[1,:],lw=1.5,c='b', label="Initial Data")
-# for i in range(1,Nt-1,5):
-# 	plt.plot(R_metric[i],data_plotted[i,:],lw=0.5,c='b',alpha=0.2)
-# plt.plot(R_metric[-1],data_plotted[-1,:],lw=1.5,c='r', label=r"$R(t_{44},r)$")
-# plt.title(r"  $R(t,r), \omega=0$,dt=0.0025,dr=3/200.")
-# plt.xlabel("R [geometric units]")
-# plt.ylabel(r"$\tilde{\rho}$ [geometric units]")
-# plt.legend(loc="upper right")
+plt.plot([R_metric[0,-1],R_metric[0,-1]],[0,max(data_plotted[-1])],ls="--",c='b',label=r"Schwarzschild Boundary, $t_{0}$")
+plt.plot(R_metric[0],data_plotted[1,:],lw=1.5,c='b', label="Initial Data")
+for i in range(1,Nt-1,5):
+	plt.plot(R_metric[i],data_plotted[i,:],lw=0.5,c='b',alpha=0.2)
+plt.plot(R_metric[-1],data_plotted[-1,:],lw=1.5,c='r', label=r"$\rho(t_{last},r)$")
+plt.plot([R_metric[-1,-1],R_metric[-1,-1]],[0,max(data_plotted[-1])],ls="--",c='r',label=r"Schwarzschild Boundary, $t_{last}$")
+plt.title(r" Density $\tilde{\rho}(t,r), \omega=1/3$,dt=0.002,dr=$\sqrt{1.6}/200$")
+plt.xlabel("R [geometric units]")
+plt.ylabel(r"$\tilde{\rho}$ [geometric units]")
+plt.legend(loc="upper right")
+
+# plt.xlim(0,r_s+1e-2)
+# plt.ylim(0,0.03)
+
+# plt.show()
 
 
-plt.plot(data_plotted[:,0],t_grid,lw=1.5,c='b', label="Initial Data")
-for i in range(1,N_space-1,4):
-  plt.plot(data_plotted[:,i],t_grid,lw=0.5,c='b',alpha=0.8)
-plt.plot(data_plotted[:,-1],t_grid,lw=1.5,c='r', label=r"$R(t_{44},r)$")
+# # plot the central density as function of time
+# plt.plot(t_grid,centraldensity)
+# # plt.plot(t_grid,density[2::,0])
+# for i in range(0,10,1):
+#   plt.plot(t_grid,density[2::,i],c='r',lw=0.5)
+# # plt.plot(t_grid,density[2::,1])
+# # plt.plot(t_grid,density[2::,2])
+# # plt.plot(t_grid,density[2::,3])
+
+# # plt.xlim(0,1.2)
+# # plt.ylim(0,0.09)
+
+
+# for i in range(0,len(r_grid),10):
+#   plt.plot(r_grid,Rdot[i],c='b',lw=0.5)
+
+
+plt.show()
+
+
+
+
+
+
+
+
+# Plots of the radius of each mass shell vs time
+# plt.plot(data_plotted[:,0],t_grid,lw=1.5,c='b', label="Inner Shell")
+# for i in range(1,N_space-1,10):
+#   plt.plot(data_plotted[:,i],t_grid,lw=0.5,c='b',alpha=0.8)
+# plt.plot(data_plotted[:,-1],t_grid,lw=1.5,c='r', label=r"$Outer Shell$")
 
 # plt.yscale('log')
 # plt.xscale('log')
@@ -106,7 +141,7 @@ def initial_density(r):
   # horizon appears across the domain at similar times
   # if p=16, horizon forms at center and expands out
   p = 16.0
-  return (1/(p*np.pi))*np.exp(-4.0*(r**2))
+  return (1./(p*np.pi))*np.exp(-4.0*(r**2))
 
 
 
@@ -149,10 +184,10 @@ r_start = r_grid[0]
 r_end = r_grid[-1]
 t_start = 0
 # t_end = 50
-N_t = 100000
-N_r = 200
+N_t = 200
+N_r = 2000
 
-# r_grid = np.linspace(r_start,r_end,N_r)
+r_grid = np.linspace(r_start,r_end,N_r)
 t_grid = np.linspace(0,t_end,N_t)
 
 # Mass function from solving density field equation
@@ -172,10 +207,10 @@ horizon_radii = []
 horizon_times = []
 
 # # For each worldline, solve the Friedmann equation
-# for i in range(1,len(r_grid),10):
+# for i in range(1,len(r_grid),100):
   
 #   # Data for the current worldline
-#   shell_mass = mass[0,i]
+#   shell_mass = mass.y[0][i]
 #   shell_radius = r_grid[i]
 
 #   # Solution to the Friedmann equation
@@ -190,18 +225,25 @@ horizon_times = []
 #   if len(Radius.t_events)>1:
 #     for j in range(len(Radius.t_events)):
 #       horizon_times.append(Radius.t_events[j])
-#       # plt.scatter(Radius.y_events[j],Radius.t_events[j],c="r")
+#       plt.scatter(Radius.y_events[j],Radius.t_events[j],c="r")
 #   elif len(Radius.t_events == 1):
 #     horizon_times.append(Radius.t_events)
 
-
-# get time of last shell collapse
+# plt.plot(Radius.y[0],Radius.t,lw=0.5,c="k",ls='--',label="LTB Exact")
+# # get time of last shell collapse
 # t_last_collapse = Radius.t[-1]
 
-# Resize plot window and show
+# # Resize plot window and show
 # plt.ylim(0,t_last_collapse)
 # plt.xlim(0,r_end)
+
+# plt.xlabel("R(t,r), [geometric units]")
+# plt.ylabel("t, [geometric units]")
+# plt.title(r"t vs. R(t) for each mass shell, dt=0.002, $\omega =0$ ")
+# plt.legend(loc="upper right")
+
 # plt.show()
+
 
 
 
@@ -210,7 +252,6 @@ horizon_times = []
 
 # plt.ylim(0,0.67)
 # plt.xlim(0,r_start)
-plt.show()
 
 
 

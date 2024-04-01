@@ -108,6 +108,7 @@ int main() {
 	std::vector<double> B_metric;
 	std::vector<double> B_metric_pred;
 	std::vector<double> rho_time_slice;
+	std::vector<double> central_density;
 
 	// Complete Containers
 	std::vector<std::vector<double> > R_metric_full;
@@ -122,12 +123,13 @@ int main() {
 	std::vector<std::vector<double> > R_metric_dot_full;
 	std::vector<std::vector<double> > R_metric_prime_full;
 	std::vector<std::vector<double> > spincoef_rho_full;
+	std::vector<std::vector<double> > central_density_full;
 
 	int N_space;
 	int N_temporal;
 
 	std::vector<int> bisection_errors;
-	std::uintmax_t Max_iterations = 500; // maximum iterations for root finding method.
+	std::uintmax_t Max_iterations = 1000; // maximum iterations for root finding method.
 
 	double r;
 	double dr;
@@ -142,11 +144,11 @@ int main() {
 
 	// Parameters and constants
 	N_space = 200;
-	N_temporal = 85;
-	r_s = 3.0;
+	N_temporal = 91;
+	r_s = sqrt(1.6);
 	dr = r_s/N_space;
-	dt = 0.0025;
-	omega = 2.0/3.0;
+	dt = 0.002;
+	omega = 1.0/3.0;
 	sound_velocity = sqrt(omega);
 	kappa = 8.0*M_PI;
 	mass_total = 0.221557 * kappa; // from integrating rho(r) = e^(-r^2). from r=0,4.
@@ -169,14 +171,15 @@ int main() {
 	A_metric = integrate_A(pressure_prime,density,pressure,dr);
 	A_metric_prime = gradient(A_metric,dr);
 
-
+	central_density.push_back(density[0]); // Initial Central Density
 	R_metric_dot.push_back(0.0); // Boundary data on Rdot
 	mass_dot.push_back(0.0); // Boundary data on Mdot
 	for (int i = 1; i < N_space; ++i)
 	{
-		R_metric_dot.push_back(InitializeRdot(A_metric[i],B_metric[i],R_metric[i],mass[i]));
-		// R_metric_dot.push_back(0.0);
-		mass_dot.push_back(ComputeMdot(R_metric[i],R_metric_dot[i],pressure[i],kappa));
+		// R_metric_dot.push_back(InitializeRdot(A_metric[i],B_metric[i],R_metric[i],mass[i]));
+		R_metric_dot.push_back(0.0);
+		// mass_dot.push_back(ComputeMdot(R_metric[i],R_metric_dot[i],pressure[i],kappa));
+		mass_dot.push_back(0.0);
 	}
 
 	// Reserve memory for the 'prediction' vectors at each timestep
@@ -242,9 +245,9 @@ int main() {
 		// Euler Step R 
 		for (int i = 0; i < N_space; ++i) {
 			// R_metric[i] += dr*R_metric_dot[i];
-			R_metric_pred[i] += dr*R_metric_dot[i];
+			R_metric_pred[i] += dt*R_metric_dot[i];
 			// mass[i] += dr*mass_dot[i];
-			mass_pred[i] += dr*mass_dot[i];
+			mass_pred[i] += dt*mass_dot[i];
 		} // Updating R and M
 		// std::cout << mass_pred.size() << " mass size" << std::endl;
 		// std::cout << R_metric_pred.size() << " mass size" << std::endl;
@@ -373,8 +376,8 @@ int main() {
 		// Step 1: Update R_i and M_i
 		// Trapezoid Correction Step R and M 
 		for (int i = 0; i < N_space; ++i) {
-			R_metric[i] += dr/2.0 * (R_metric_dot[i] + R_metric_dot_pred[i]);
-			mass[i] += dr/2.0 * (mass_dot[i] + mass_dot_pred[i]);
+			R_metric[i] += (dt/2.0) * (R_metric_dot[i] + R_metric_dot_pred[i]);
+			mass[i] += (dt/2.0) * (mass_dot[i] + mass_dot_pred[i]);
 		} // Updating R and M
 
 		// Step 1.5: Compute dR_i, dM_i
@@ -409,7 +412,6 @@ int main() {
 			Ri = R_metric_full[j][i];
 			Ai = A_full[j][i];
 			Ai1= A_metric[i];
-			// Ai = 1; Ai1 = 1;
 			Api1 = A_metric_prime[i];
 			Api = A_full[j][i];
 			Rpi = R_metric_prime_full[j][i];
@@ -483,7 +485,7 @@ int main() {
 		// Step 6: Compute Mdot_i+1 from Rdot_i+1
 		mass_dot[0] = 0.0;
 		for (int i = 1; i < N_space; ++i) {
-			mass_dot_pred[i] = ComputeMdot(R_metric_pred[i],R_metric_dot_pred[i],pressure_pred[i],kappa);
+			mass_dot[i] = ComputeMdot(R_metric[i],R_metric_dot[i],pressure[i],kappa);
 		}
 
 		// compute and store the spin coefficient rho at the current timestep.
@@ -509,17 +511,21 @@ int main() {
 			double gridV= GridVelocity(A_metric[i],B,dt,dr);
 			minGV = std::min(minGV,gridV);
 		}
-		std::cout << "Smallest Grid velocity: " << minGV << std::endl;
+		// std::cout << "Smallest Grid velocity: " << minGV << std::endl;
 		if ( j >1 && sound_velocity > minGV)
 		{	
-			std::cout << "Sound Velocity: " << sound_velocity << std::endl;
-			std::cout << "Grid Velocity : " << minGV << std::endl;
-			std::cout << "Sound velocity exceeds grid velocity, evolution unstable..." << std::endl;
-			std::cout << "Stopping evolution at timestep: " << j << std::endl;
+			// std::cout << "Sound Velocity: " << sound_velocity << std::endl;
+			// std::cout << "Grid Velocity : " << minGV << std::endl;
+			// std::cout << "Sound velocity exceeds grid velocity, evolution unstable..." << std::endl;
+			// std::cout << "Stopping evolution at timestep: " << j << std::endl;
 		}
 
-
-
+		if (j>1) {
+			// Update the central density using first order finite differences
+			double curr_cent_dens = central_density[j-2];
+			std::cout<< "Central density: " << curr_cent_dens << std::endl;
+			central_density.push_back(curr_cent_dens - (dt/dr)*(1. + omega)*curr_cent_dens* ( 4.*R_metric_dot[1] - 3.*R_metric_dot[2] + (4./3.)*R_metric_dot[3]- (1./4.)* R_metric_dot[4] )  );			
+		}
 
 
 
@@ -547,6 +553,8 @@ int main() {
 
 	std::cout << "Sound velocity: " << sound_velocity << std::endl;
 	std::cout << "Saving data to file." << std::endl;
+	central_density_full.push_back(central_density);
+
 
 	// Save Data to File
 	save_to_file(A_full,"Results/A_metric.txt");
@@ -560,7 +568,7 @@ int main() {
 	save_to_file(R_metric_full,"Results/R_metric.txt");
 	save_to_file(spincoef_rho_full,"Results/rho.txt");
 	save_to_file(mass_dot_full,"Results/mass_dot.txt");
-
+	save_to_file(central_density_full,"Results/CentralDensity.txt");
 
 } // End Main
 
@@ -572,8 +580,8 @@ int main() {
  **************************/
 template<class T>
 T InitialDensity(T r) {
-	return (1.0/(16.0*M_PI))*exp(-4.0*r*r);
-	// return exp(-4.0*r*r);
+	// return (1.0/(16.0*M_PI))*exp(-4.0*r*r);
+	return exp(-4.0*r*r);
 }
 
 template<class T>
